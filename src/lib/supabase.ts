@@ -113,7 +113,7 @@ export async function updateUserRequiresApiKey(userId: string, requiresApiKey: b
   
   const { error } = await supabase
     .from('users')
-    .update({ requires_api_key: requiresApiKey, updated_at: new Date().toISOString() })
+    .update({ requires_api_key: requiresApiKey })
     .eq('id', userId);
   
   return !error;
@@ -152,4 +152,5 @@ function generateRandomKey(): string {
     'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 36))
   ).join('');
 }
+
 
