@@ -1,38 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getUserByApiKey, checkUserQuota } from '@/lib/supabase';
-import { PLANS } from '@/lib/api-types';
+import { ValidateResponse } from '@/lib/api-types';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { api_key } = await request.json();
-    
+    const body = await request.json();
+    const { api_key } = body;
+
     if (!api_key) {
-      return NextResponse.json({ success: false, error: 'API Key requerida' }, { status: 400 });
+      return NextResponse.json<ValidateResponse>({
+        valid: false,
+        error: 'API key is required'
+      }, { status: 400 });
     }
 
     const user = await getUserByApiKey(api_key);
+
     if (!user) {
-      return NextResponse.json({ success: false, error: 'API Key no válida' }, { status: 401 });
+      return NextResponse.json<ValidateResponse>({
+        valid: false,
+        error: 'Invalid API key'
+      }, { status: 401 });
     }
 
     const quota = await checkUserQuota(user.id);
-    const plan = PLANS.find(p => p.id === user.plan_id);
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json<ValidateResponse>({
       valid: true,
-      user: {
-        name: user.name,
-        plan: plan?.name || user.plan_id,
-        tokens_used: quota.used,
-        tokens_limit: quota.limit,
-        tokens_remaining: quota.remaining,
-        requires_api_key: user.requires_api_key ?? true
-      }
+      plan: user.plan_id,
+      tokens_used: quota.used,
+      tokens_limit: quota.limit,
+      requires_api_key: user.requires_api_key,
+      remaining: quota.remaining
     });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: 'Error interno' }, { status: 500 });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    return NextResponse.json<ValidateResponse>({
+      valid: false,
+      error: 'Internal server error'
+    }, { status: 500 });
   }
 }
