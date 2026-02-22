@@ -65,24 +65,19 @@ export async function checkUserQuota(userId: string): Promise<{ canUse: boolean;
 export async function incrementTokenUsage(userId: string, tokens: number): Promise<void> {
   const supabase = getSupabase();
   
-  await supabase.rpc('increment_tokens', {
-    user_id: userId,
-    token_amount: tokens
-  }).catch(async () => {
-    // Fallback if RPC doesn't exist
-    const { data: user } = await supabase
+  // Direct update - simpler and more reliable
+  const { data: user } = await supabase
+    .from('users')
+    .select('tokens_used')
+    .eq('id', userId)
+    .single();
+  
+  if (user) {
+    await supabase
       .from('users')
-      .select('tokens_used')
-      .eq('id', userId)
-      .single();
-    
-    if (user) {
-      await supabase
-        .from('users')
-        .update({ tokens_used: (user.tokens_used || 0) + tokens })
-        .eq('id', userId);
-    }
-  });
+      .update({ tokens_used: (user.tokens_used || 0) + tokens })
+      .eq('id', userId);
+  }
 }
 
 export async function logUsage(userId: string, endpoint: string, tokensUsed: number): Promise<void> {
@@ -157,3 +152,4 @@ function generateRandomKey(): string {
     'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 36))
   ).join('');
 }
+
