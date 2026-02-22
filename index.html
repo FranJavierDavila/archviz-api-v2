@@ -1759,33 +1759,67 @@ ${texto}
     // ============================================
     const _originalGeneratePrompts = generatePrompts;
     
-    generatePrompts = async function() {
-      const apiKey = document.getElementById('apiKey').value.trim();
-      
-      // Si hay API Key, validar y decidir modo
-      if (apiKey) {
-        if (!apiUserData) {
-          await validateApiKey();
-          if (!apiUserData) return;
-        }
-        
-        // Si el usuario NO requiere API Key, usar modo local
-        if (apiUserData.requires_api_key === false) {
-          _originalGeneratePrompts();
-          return;
-        }
-        
-        // Si requiere API Key, usar la API
-        await generatePromptsWithApi(apiKey);
-      } else {
-        // Si no hay API Key, usar modo local
-        if (apiRequiresKey) {
-          alert('Se requiere una API Key valida para generar prompts.');
-          return;
-        }
-        _originalGeneratePrompts();
-      }
+    generatePrompts = async function generatePrompt() {
+    const apiKey = document.getElementById('apiKey').value;
+    
+    if (!apiKey) {
+        showApiStatus('Introduce una API Key para generar', 'error');
+        return;
+    }
+
+    showApiStatus('Validando cuota...', 'info');
+
+    // RECOLECCIÓN DE TUS DATOS (Sin quitar ninguna categoría)
+    const promptData = {
+        scene: document.getElementById('scene-select').value,
+        lighting: document.getElementById('lighting-select').value,
+        weather: document.getElementById('weather-select').value,
+        camera: document.getElementById('camera-select').value,
+        composition: document.getElementById('composition-select').value,
+        materials: document.getElementById('materials-select').value,
+        render: document.getElementById('render-select').value,
+        style: document.getElementById('style-select').value,
+        extra: document.getElementById('extra-select').value
     };
+
+    try {
+        // LLAMADA A TU API DE VERCEL
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                api_key: apiKey,
+                prompt_data: promptData,
+                engine: selectedEngine
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Mantenemos tu lógica de visualización exacta
+            document.getElementById('promptPositivo').value = data.prompt;
+            
+            if (selectedEngine === 'dalle') {
+                document.getElementById('promptNegativo').value = '(DALL-E no soporta prompts negativos)';
+            } else {
+                document.getElementById('promptNegativo').value = data.negative_prompt;
+            }
+            
+            // Actualizamos el estado con la respuesta de tu base de datos
+            showApiStatus('Plan: ' + data.plan + ' | Tokens: ' + data.tokens_remaining + ' restantes', 'success');
+        } else {
+            showApiStatus(data.error, 'error');
+            if (response.status === 403) alert('Tokens agotados. Contacta para recargar.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showApiStatus('Error de conexión con el servidor de cuotas', 'error');
+        // AQUÍ YA NO HAY FALLBACK LOCAL
+    }
+};
     
     async function generatePromptsWithApi(apiKey) {
       if (!selectedEngine) {
@@ -1872,12 +1906,10 @@ ${texto}
         }
       } catch (error) {
         console.error('Error generating prompt:', error);
-        showApiStatus('Error de conexion. Usando modo local...', 'error');
-        // Fallback a modo local
-        _originalGeneratePrompts();
       }
     }
 
   </script>
 </body>
 </html>
+
