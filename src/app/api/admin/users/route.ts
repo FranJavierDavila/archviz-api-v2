@@ -1,34 +1,92 @@
-import { NextResponse } from 'next/server';
-import { getAllUsers, createUser, updateUser } from '@/lib/supabase';
-import { PLANS } from '@/lib/api-types';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAllUsers, createUser, updateUserRequiresApiKey } from '@/lib/supabase';
+import { User } from '@/lib/api-types';
 
 export const dynamic = 'force-dynamic';
 
-const ADMIN_KEY = process.env.ADMIN_API_KEY || 'admin123';
-
-function auth(request: Request) {
-  return request.headers.get('Authorization')?.replace('Bearer ', '') === ADMIN_KEY;
+// Admin secret for authorization
+function isAuthorized(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.ADMIN_SECRET;
+  
+  if (!adminSecret) return true; // Allow if no secret configured
+  
+  return authHeader === `Bearer ${adminSecret}`;
 }
 
-export async function GET(request: Request) {
-  if (!auth(request)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  const users = await getAllUsers();
-  return NextResponse.json({ success: true, users: users.map(u => ({ ...u, plan_name: PLANS.find(p => p.id === u.plan_id)?.name })) });
+// GET - List all users
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const users = await getAllUsers();
+    return NextResponse.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+  }
 }
 
-export async function POST(request: Request) {
-  if (!auth(request)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  const { email, name, plan_id } = await request.json();
-  const result = await createUser(email, name, plan_id);
-  return result.error ? NextResponse.json({ error: result.error }, { status: 400 }) : NextResponse.json({ success: true, user: result.user });
+// POST - Create new user
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { email, plan_id, requires_api_key } = body;
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    const user = await createUser(email, plan_id || 'free', requires_api_key ?? true);
+
+    if (!user) {
+      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+    }
+
+    return NextResponse.json({ user }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+  }
 }
 
-export async function PATCH(request: Request) {
-  if (!auth(request)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  const { user_id, requires_api_key, is_active } = await request.json();
-  const data: Record<string, any> = {};
-  if (requires_api_key !== undefined) data.requires_api_key = requires_api_key;
-  if (is_active !== undefined) data.is_active = is_active;
-  const result = await updateUser(user_id, data);
-  return NextResponse.json(result);
+// PATCH - Update user (e.g., requires_api_key)
+export async function PATCH(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { user_id, requires_api_key } = body;
+
+    if (!user_id) {
+      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
+    }
+
+    if (typeof requires_api_key !== 'boolean') {
+      return NextResponse.json({ error: 'requires_api_key must be a boolean' }, { status: 400 });
+    }
+
+    const success = await updateUserRequiresApiKey(user_id, requires_api_key);
+
+    if (!success) {
+      return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      user_id, 
+      requires_api_key 
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+  }
 }
