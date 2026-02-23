@@ -1759,58 +1759,50 @@ async function validateApiKey() {
     const _originalGeneratePrompts = generatePrompts;
     
     generatePrompts = async function generatePrompt() {
-    const apiKey = document.getElementById('apiKey').value;
+    const apiKey = document.getElementById('apiKey').value.trim();
     
     if (!apiKey) {
         showApiStatus('Introduce una API Key para generar', 'error');
         return;
     }
 
-    const btn = document.querySelector('button[onclick="generatePrompt()"]');
-    btn.disabled = true;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="animate-spin mr-2">⏳</span> Conectando...';
+    // Cambiamos el estado del botón para que el usuario sepa que está trabajando
+    const genBtn = document.querySelector('button[onclick="generatePrompt()"]');
+    const originalText = genBtn.innerHTML;
+    genBtn.disabled = true;
+    genBtn.innerHTML = 'Generando...';
 
-    showApiStatus('Validando con el servidor...', 'info');
-
-    // Recolectar todos tus selectores (Asegúrate de que los IDs coincidan con tu HTML)
+    // Recolectamos los datos de los selectores
     const promptData = {
-        scene: document.getElementById('scene-select')?.value,
-        lighting: document.getElementById('lighting-select')?.value,
-        weather: document.getElementById('weather-select')?.value,
-        camera: document.getElementById('camera-select')?.value,
-        composition: document.getElementById('composition-select')?.value,
-        materials: document.getElementById('materials-select')?.value,
-        render: document.getElementById('render-select')?.value,
-        style: document.getElementById('style-select')?.value,
-        extra: document.getElementById('extra-select')?.value
+        scene: document.getElementById('scene-select').value,
+        lighting: document.getElementById('lighting-select').value,
+        weather: document.getElementById('weather-select').value,
+        camera: document.getElementById('camera-select').value,
+        composition: document.getElementById('composition-select').value,
+        materials: document.getElementById('materials-select').value,
+        render: document.getElementById('render-select').value,
+        style: document.getElementById('style-select').value,
+        extra: document.getElementById('extra-select').value
     };
 
     try {
-        // Llamada a tu API en Vercel
-// Dentro de la función que genera el prompt, cambia la línea del fetch por esta:
-const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-    },
-    body: JSON.stringify({
-        api_key: apiKey,
-        prompt_data: promptData,
-        engine: selectedEngine
-    })
-});
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error en el servidor');
-        }
-
+        // USAMOS RUTA RELATIVA PARA EVITAR CORS
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                api_key: apiKey,
+                prompt_data: promptData,
+                engine: selectedEngine
+            })
+        });
+        
         const data = await response.json();
-
+        
         if (data.success) {
-            // Rellenar tus cuadros de texto originales
+            // Escribimos los resultados en los cuadros de texto
             document.getElementById('promptPositivo').value = data.prompt;
             
             if (selectedEngine === 'dalle') {
@@ -1819,19 +1811,17 @@ const response = await fetch('/api/generate', {
                 document.getElementById('promptNegativo').value = data.negative_prompt;
             }
             
-            // Actualizar el estado con los datos reales de Supabase
+            // Actualizamos los tokens restantes en la interfaz
             showApiStatus('Plan: ' + data.plan + ' | Tokens: ' + data.tokens_remaining + ' restantes', 'success');
         } else {
             showApiStatus(data.error, 'error');
         }
-
     } catch (error) {
-        console.error('Error detallado:', error);
-        // Aquí es donde te daba el error antes. Ahora somos más específicos.
-        showApiStatus('Error: ' + error.message, 'error');
+        console.error('Error:', error);
+        showApiStatus('Error al conectar con el generador', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        genBtn.disabled = false;
+        genBtn.innerHTML = originalText;
     }
 };
     
@@ -1926,6 +1916,7 @@ const response = await fetch('/api/generate', {
   </script>
 </body>
 </html>
+
 
 
 
