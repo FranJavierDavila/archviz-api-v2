@@ -1,17 +1,3 @@
-export default async function handler(req, res) {
-  // AÑADE ESTAS LÍNEAS DE CORS:
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Permite cualquier origen
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-  
-  // ... resto de tu código de Supabase ...
-}
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
