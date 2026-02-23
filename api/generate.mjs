@@ -1,61 +1,66 @@
-// En tu archivo api/generate.js añade esto al principio:
-res.setHeader('Access-Control-Allow-Credentials', true);
-res.setHeader('Access-Control-Allow-Origin', '*');
-res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+import { createClient } from '@supabase/supabase-js';
 
-if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-}
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
+  // Configuración de CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { api_key, prompt_data, engine } = req.body;
+  const { api_key, prompt_data } = req.body;
 
-  // 1. Buscar usuario por API Key
-// 1. Cuando busques al usuario, usa los alias para tus columnas reales
-const { data: user, error: userError } = await supabase
-  .from('users')
-  .select('plan:plan_id, tokens_used, total_tokens:max_tokens') // <--- CLAVE: Tus nombres reales
-  .eq('api_key', api_key)
-  .single();
+  try {
+    // 1. Validar usuario y ver si tiene tokens
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('plan:plan_id, tokens_used, total:max_tokens')
+      .eq('api_key', api_key)
+      .single();
 
-if (userError || !user) {
-  return res.status(401).json({ success: false, error: 'API Key inválida' });
+    if (userError || !user) {
+      return res.status(401).json({ success: false, error: 'API Key inválida' });
+    }
+
+    if (user.tokens_used >= user.total) {
+      return res.status(403).json({ success: false, error: 'Tokens agotados' });
+    }
+
+    // 2. CONSTRUIR EL PROMPT (Aquí es donde "fabricamos" la frase)
+    // Juntamos los valores que vienen del formulario
+    const partes = [
+      prompt_data.estilo,
+      prompt_data.vista,
+      prompt_data.sujeto,
+      prompt_data.iluminacion,
+      prompt_data.clima,
+      prompt_data.materiales,
+      prompt_data.detalles,
+      prompt_data.render
+    ].filter(Boolean); // Esto elimina los campos que estén vacíos
+
+    const promptFinal = partes.join(", ");
+    const negativePrompt = "blurry, low quality, distorted, watermark";
+
+    // 3. Descontar el token en Supabase
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ tokens_used: user.tokens_used + 1 })
+      .eq('api_key', api_key);
+
+    if (updateError) throw updateError;
+
+    // 4. Enviar la respuesta a la web
+    res.status(200).json({
+      success: true,
+      prompt: promptFinal,
+      negative_prompt: negativePrompt,
+      tokens_remaining: user.total - (user.tokens_used + 1),
+      plan: user.plan
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 }
-
-// 2. Verificar si le quedan tokens
-if (user.tokens_used >= user.total_tokens) {
-  return res.status(403).json({ success: false, error: 'Has agotado tus tokens' });
-}
-
-  // 3. Lógica de Prompt (Simplificada, puedes expandirla)
-  const finalPrompt = `Professional architecture, ${prompt_data.scene}, high quality --v 6.1`;
-
-  // 4. Actualización: Sumar uso y Crear Log
-// 4. Al final, cuando descuentes el token, usa el nombre de columna correcto
-const { error: updateError } = await supabase
-  .from('users')
-  .update({ tokens_used: user.tokens_used + 1 }) // 'tokens_used' sí se llama así en tu base
-  .eq('api_key', api_key);
-
-  await supabase.from('usage_logs').insert([
-    { user_id: user.id, tokens_used: 1, action: `Generated ${engine} prompt` }
-  ]);
-
-  return res.status(200).json({
-    success: true,
-    prompt: finalPrompt,
-    negative_prompt: "low quality, blurry",
-    tokens_remaining: user.max_tokens - (user.tokens_used + 1),
-    plan: user.plan_id
-  });
-
-}
-
-
