@@ -1767,23 +1767,28 @@ ${texto}
         return;
     }
 
-    showApiStatus('Validando cuota...', 'info');
+    const btn = document.querySelector('button[onclick="generatePrompt()"]');
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="animate-spin mr-2">⏳</span> Conectando...';
 
-    // RECOLECCIÓN DE TUS DATOS (Sin quitar ninguna categoría)
+    showApiStatus('Validando con el servidor...', 'info');
+
+    // Recolectar todos tus selectores (Asegúrate de que los IDs coincidan con tu HTML)
     const promptData = {
-        scene: document.getElementById('scene-select').value,
-        lighting: document.getElementById('lighting-select').value,
-        weather: document.getElementById('weather-select').value,
-        camera: document.getElementById('camera-select').value,
-        composition: document.getElementById('composition-select').value,
-        materials: document.getElementById('materials-select').value,
-        render: document.getElementById('render-select').value,
-        style: document.getElementById('style-select').value,
-        extra: document.getElementById('extra-select').value
+        scene: document.getElementById('scene-select')?.value,
+        lighting: document.getElementById('lighting-select')?.value,
+        weather: document.getElementById('weather-select')?.value,
+        camera: document.getElementById('camera-select')?.value,
+        composition: document.getElementById('composition-select')?.value,
+        materials: document.getElementById('materials-select')?.value,
+        render: document.getElementById('render-select')?.value,
+        style: document.getElementById('style-select')?.value,
+        extra: document.getElementById('extra-select')?.value
     };
 
     try {
-        // LLAMADA A TU API DE VERCEL
+        // Llamada a tu API en Vercel
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: {
@@ -1795,29 +1800,37 @@ ${texto}
                 engine: selectedEngine
             })
         });
-        
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error en el servidor');
+        }
+
         const data = await response.json();
-        
+
         if (data.success) {
-            // Mantenemos tu lógica de visualización exacta
+            // Rellenar tus cuadros de texto originales
             document.getElementById('promptPositivo').value = data.prompt;
             
             if (selectedEngine === 'dalle') {
-                document.getElementById('promptNegativo').value = '(DALL-E no soporta prompts negativos)';
+                document.getElementById('promptNegativo').value = '(DALL-E no usa prompts negativos)';
             } else {
                 document.getElementById('promptNegativo').value = data.negative_prompt;
             }
             
-            // Actualizamos el estado con la respuesta de tu base de datos
+            // Actualizar el estado con los datos reales de Supabase
             showApiStatus('Plan: ' + data.plan + ' | Tokens: ' + data.tokens_remaining + ' restantes', 'success');
         } else {
             showApiStatus(data.error, 'error');
-            if (response.status === 403) alert('Tokens agotados. Contacta para recargar.');
         }
+
     } catch (error) {
-        console.error('Error:', error);
-        showApiStatus('Error de conexión con el servidor de cuotas', 'error');
-        // AQUÍ YA NO HAY FALLBACK LOCAL
+        console.error('Error detallado:', error);
+        // Aquí es donde te daba el error antes. Ahora somos más específicos.
+        showApiStatus('Error: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 };
     
@@ -1912,4 +1925,5 @@ ${texto}
   </script>
 </body>
 </html>
+
 
