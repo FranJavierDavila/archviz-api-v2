@@ -1713,7 +1713,7 @@ ${texto}
       statusDiv.innerHTML = '<span class="text-slate-400">Validando...</span>';
       
       try {
-        const response = await fetch(API_BASE_URL + '/api/validate', {
+        const response = await fetch('/api/validate', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + apiKey
@@ -1925,6 +1925,7 @@ ${texto}
   </script>
 </body>
 </html>
+
 
 
 
