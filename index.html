@@ -1766,13 +1766,16 @@ async function validateApiKey() {
         return;
     }
 
-    // Cambiamos el estado del botón para que el usuario sepa que está trabajando
-    const genBtn = document.querySelector('button[onclick="generatePrompt()"]');
-    const originalText = genBtn.innerHTML;
-    genBtn.disabled = true;
-    genBtn.innerHTML = 'Generando...';
+    // Buscamos el botón por el ID que acabamos de poner
+    const genBtn = document.getElementById('generateBtn');
+    let originalText = "";
+    
+    if (genBtn) {
+        originalText = genBtn.innerHTML;
+        genBtn.disabled = true;
+        genBtn.innerHTML = 'Generando...';
+    }
 
-    // Recolectamos los datos de los selectores
     const promptData = {
         scene: document.getElementById('scene-select').value,
         lighting: document.getElementById('lighting-select').value,
@@ -1786,12 +1789,9 @@ async function validateApiKey() {
     };
 
     try {
-        // USAMOS RUTA RELATIVA PARA EVITAR CORS
         const response = await fetch('/api/generate', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 api_key: apiKey,
                 prompt_data: promptData,
@@ -1802,26 +1802,22 @@ async function validateApiKey() {
         const data = await response.json();
         
         if (data.success) {
-            // Escribimos los resultados en los cuadros de texto
             document.getElementById('promptPositivo').value = data.prompt;
+            document.getElementById('promptNegativo').value = selectedEngine === 'dalle' ? '(DALL-E no usa negativos)' : data.negative_prompt;
             
-            if (selectedEngine === 'dalle') {
-                document.getElementById('promptNegativo').value = '(DALL-E no usa prompts negativos)';
-            } else {
-                document.getElementById('promptNegativo').value = data.negative_prompt;
-            }
-            
-            // Actualizamos los tokens restantes en la interfaz
-            showApiStatus('Plan: ' + data.plan + ' | Tokens: ' + data.tokens_remaining + ' restantes', 'success');
+            // Actualizar tokens
+            showApiStatus(`Plan: ${data.plan} | Tokens: ${data.tokens_remaining} restantes`, 'success');
         } else {
             showApiStatus(data.error, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        showApiStatus('Error al conectar con el generador', 'error');
+        showApiStatus('Error al conectar con el servidor', 'error');
     } finally {
-        genBtn.disabled = false;
-        genBtn.innerHTML = originalText;
+        if (genBtn) {
+            genBtn.disabled = false;
+            genBtn.innerHTML = originalText;
+        }
     }
 };
     
@@ -1916,6 +1912,7 @@ async function validateApiKey() {
   </script>
 </body>
 </html>
+
 
 
 
