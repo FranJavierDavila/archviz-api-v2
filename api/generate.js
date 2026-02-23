@@ -18,12 +18,12 @@ export default async function handler(req, res) {
   const { api_key, prompt_data, engine } = req.body;
 
   // 1. Buscar usuario por API Key
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('api_key', api_key)
-    .eq('is_active', true)
-    .single();
+ // Dentro de api/generate.js, cuando pidas los datos del usuario:
+const { data: user, error: userError } = await supabase
+  .from('users')
+  .select('plan:plan_id, tokens_used, total:max_tokens') // <--- Usa los nombres reales
+  .eq('api_key', api_key)
+  .single();
 
   if (error || !user) {
     return res.status(401).json({ success: false, error: 'API Key inválida o usuario inactivo' });
@@ -38,10 +38,11 @@ export default async function handler(req, res) {
   const finalPrompt = `Professional architecture, ${prompt_data.scene}, high quality --v 6.1`;
 
   // 4. Actualización: Sumar uso y Crear Log
-  await supabase
-    .from('users')
-    .update({ tokens_used: user.tokens_used + 1 })
-    .eq('id', user.id);
+// Y cuando actualices los tokens tras generar el prompt:
+const { error: updateError } = await supabase
+  .from('users')
+  .update({ tokens_used: user.tokens_used + 1 }) // 'tokens_used' sí existe tal cual
+  .eq('api_key', api_key);
 
   await supabase.from('usage_logs').insert([
     { user_id: user.id, tokens_used: 1, action: `Generated ${engine} prompt` }
@@ -56,3 +57,4 @@ export default async function handler(req, res) {
   });
 
 }
+
