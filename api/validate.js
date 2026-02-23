@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('plan:plan_id, tokens_used, max_tokens:total_tokens')
+      .select('plan:plan_id, tokens_used, max_tokens')
       .eq('api_key', api_key)
       .maybeSingle(); // Usamos maybeSingle para que no explote si no hay nada
 
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       success: true,
       plan: data.plan,
-      tokens_remaining: data.total_tokens - data.tokens_used
+      tokens_remaining: data.max_tokens - data.tokens_used
     });
   } catch (err) {
     console.error(err);
