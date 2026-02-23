@@ -18,30 +18,30 @@ export default async function handler(req, res) {
   const { api_key, prompt_data, engine } = req.body;
 
   // 1. Buscar usuario por API Key
- // Dentro de api/generate.js, cuando pidas los datos del usuario:
+// 1. Cuando busques al usuario, usa los alias para tus columnas reales
 const { data: user, error: userError } = await supabase
   .from('users')
-  .select('plan:plan_id, tokens_used, total:max_tokens') // <--- Usa los nombres reales
+  .select('plan:plan_id, tokens_used, total_tokens:max_tokens') // <--- CLAVE: Tus nombres reales
   .eq('api_key', api_key)
   .single();
 
-  if (error || !user) {
-    return res.status(401).json({ success: false, error: 'API Key inválida o usuario inactivo' });
-  }
+if (userError || !user) {
+  return res.status(401).json({ success: false, error: 'API Key inválida' });
+}
 
-  // 2. Validar cuota (max_tokens - tokens_used)
-  if ((user.max_tokens - user.tokens_used) <= 0) {
-    return res.status(403).json({ success: false, error: 'Has agotado tu cuota de tokens.' });
-  }
+// 2. Verificar si le quedan tokens
+if (user.tokens_used >= user.total_tokens) {
+  return res.status(403).json({ success: false, error: 'Has agotado tus tokens' });
+}
 
   // 3. Lógica de Prompt (Simplificada, puedes expandirla)
   const finalPrompt = `Professional architecture, ${prompt_data.scene}, high quality --v 6.1`;
 
   // 4. Actualización: Sumar uso y Crear Log
-// Y cuando actualices los tokens tras generar el prompt:
+// 4. Al final, cuando descuentes el token, usa el nombre de columna correcto
 const { error: updateError } = await supabase
   .from('users')
-  .update({ tokens_used: user.tokens_used + 1 }) // 'tokens_used' sí existe tal cual
+  .update({ tokens_used: user.tokens_used + 1 }) // 'tokens_used' sí se llama así en tu base
   .eq('api_key', api_key);
 
   await supabase.from('usage_logs').insert([
@@ -57,4 +57,5 @@ const { error: updateError } = await supabase
   });
 
 }
+
 
