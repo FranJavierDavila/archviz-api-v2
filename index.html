@@ -1789,7 +1789,7 @@ ${texto}
 
     try {
         // Llamada a tu API en Vercel
-        const response = await fetch('/api/generate', {
+        const response = await fetch('https://archviz-api-v2.vercel.app/api/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1925,5 +1925,6 @@ ${texto}
   </script>
 </body>
 </html>
+
 
 
