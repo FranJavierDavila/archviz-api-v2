@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('plan:plan_id, tokens_used, total_tokens')
+      .select('plan:plan_id, tokens_used, max_tokens:total_tokens')
       .eq('api_key', api_key)
       .maybeSingle(); // Usamos maybeSingle para que no explote si no hay nada
 
