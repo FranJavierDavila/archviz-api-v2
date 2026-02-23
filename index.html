@@ -1700,46 +1700,45 @@ ${texto}
     // ============================================
     // VALIDATE API KEY
     // ============================================
-    async function validateApiKey() {
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const statusDiv = document.getElementById('apiStatus');
-      
-      if (!apiKey) {
-        showApiStatus('Por favor, introduce una API Key', 'error');
+async function validateApiKey() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const statusDiv = document.getElementById('apiStatus');
+    
+    if (!apiKey) {
+        showApiStatus('Introduce una API Key', 'error');
         return;
-      }
-      
-      statusDiv.classList.remove('hidden');
-      statusDiv.innerHTML = '<span class="text-slate-400">Validando...</span>';
-      
-      try {
-        const response = await fetch('/api/validate', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + apiKey
-          }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          apiUserData = data.user;
-          // Si el usuario no requiere API Key, mostrar mensaje especial
-          if (data.user.requires_api_key === false) {
-            showApiStatus('Usuario verificado - Acceso libre (sin control de tokens)', 'success');
-          } else {
-            showApiStatus('Plan: ' + data.user.plan + ' | Tokens: ' + data.user.tokens_remaining + ' restantes', 'success');
-          }
-        } else {
-          apiUserData = null;
-          showApiStatus(data.error, 'error');
-        }
-      } catch (error) {
-        console.error('Error validating API key:', error);
-        showApiStatus('Error de conexión con el servidor', 'error');
-        apiUserData = null;
-      }
     }
+
+    statusDiv.className = 'mt-2 text-center text-sm text-slate-400 block';
+    statusDiv.textContent = 'Validando...';
+
+    try {
+        // CAMBIO CLAVE: Usamos ruta relativa '/api/validate' para evitar errores de CORS
+        const response = await fetch('/api/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey })
+        });
+
+        // Verificamos si la respuesta es JSON antes de leerla
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            const data = await response.json();
+            if (data.success) {
+                apiUserData = data;
+                showApiStatus(`Plan: ${data.plan} | Tokens: ${data.tokens_remaining}`, 'success');
+            } else {
+                showApiStatus(data.error || 'API Key inválida', 'error');
+            }
+        } else {
+            // Si el servidor falla (Error 500) y no manda JSON
+            showApiStatus('Error del servidor (500). Revisa las variables de entorno.', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showApiStatus('Error de conexión con el servidor', 'error');
+    }
+}
     
     function showApiStatus(message, type) {
       const statusDiv = document.getElementById('apiStatus');
@@ -1925,6 +1924,7 @@ ${texto}
   </script>
 </body>
 </html>
+
 
 
 
