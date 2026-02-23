@@ -1788,17 +1788,19 @@ async function validateApiKey() {
 
     try {
         // Llamada a tu API en Vercel
-        const response = await fetch('/api/validate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                api_key: apiKey,
-                prompt_data: promptData,
-                engine: selectedEngine
-            })
-        });
+// Dentro de la función que genera el prompt, cambia la línea del fetch por esta:
+const response = await fetch('/api/generate', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+    },
+    body: JSON.stringify({
+        api_key: apiKey,
+        prompt_data: promptData,
+        engine: selectedEngine
+    })
+});
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -1924,6 +1926,7 @@ async function validateApiKey() {
   </script>
 </body>
 </html>
+
 
 
 
