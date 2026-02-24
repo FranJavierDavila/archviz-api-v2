@@ -1759,77 +1759,71 @@ async function validateApiKey() {
     const _originalGeneratePrompts = generatePrompts;
     
     generatePrompts = async function generatePrompt() {
-  // 1. Validar API Key
-  const apiKeyEl = document.getElementById('apiKey');
-  const apiKey = apiKeyEl ? apiKeyEl.value.trim() : "";
-  
+  const apiKey = document.getElementById('apiKey').value.trim();
   if (!apiKey) {
     showApiStatus('Introduce una API Key para generar', 'error');
     return;
   }
 
-  // 2. Efecto visual en el botón
-  const genBtn = document.getElementById('generateBtn');
-  let originalText = "Generar Prompt";
-  if (genBtn) {
-    originalText = genBtn.innerHTML;
-    genBtn.disabled = true;
-    genBtn.innerHTML = '<span class="flex items-center gap-2">Generando...</span>';
+  // --- TU LÓGICA ORIGINAL DE GENERACIÓN ---
+  let prompt = "";
+  let negativePrompt = "";
+
+  if (selectedEngine === 'midjourney') {
+    // Ejemplo de tu lógica original (ajusta los IDs si cambiaron)
+    const estilo = document.getElementById('estilo-arquitectonico')?.value || "";
+    const iluminacion = document.getElementById('iluminacion')?.value || "";
+    const clima = document.getElementById('clima')?.value || "";
+    const motor = document.getElementById('motor-render')?.value || "";
+    
+    // Concatenación exacta de tu v2
+    prompt = `/imagine prompt: ${estilo}, architectural photography, ${iluminacion}, ${clima}, ${motor} --v 6.0`;
+    negativePrompt = "blurry, low quality, distorted, watermark, text, deformed";
+  } else {
+    // Lógica para DALL-E
+    const estilo = document.getElementById('estilo-arquitectonico')?.value || "";
+    prompt = `An architectural visualization of a ${estilo} building...`;
+    negativePrompt = "(DALL-E no usa prompts negativos)";
   }
 
-  // 3. Recolectar datos usando los IDs REALES de tu HTML
-  // He usado ?.value para que si no encuentra uno, no rompa el código
-  const promptData = {
-    motor: document.getElementById('motor-ia')?.value || "",
-    estilo: document.getElementById('estilo-arquitectonico')?.value || "",
-    vista: document.getElementById('tipo-vista')?.value || "",
-    sujeto: document.getElementById('sujeto-principal')?.value || "",
-    iluminacion: document.getElementById('iluminacion')?.value || "",
-    clima: document.getElementById('clima')?.value || "",
-    materiales: document.getElementById('materiales')?.value || "",
-    detalles: document.getElementById('detalles-extra')?.value || "",
-    render: document.getElementById('motor-render')?.value || ""
-  };
+  // --- INTEGRACIÓN CON TOKENS ---
+  const genBtn = document.getElementById('generateBtn');
+  if (genBtn) {
+    genBtn.disabled = true;
+    genBtn.innerHTML = 'Validando Tokens...';
+  }
 
   try {
-    // 4. Llamada a la API
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        prompt_data: promptData,
-        engine: typeof selectedEngine !== 'undefined' ? selectedEngine : 'midjourney'
-      })
+      body: JSON.stringify({ api_key: apiKey })
     });
-    
+
     const data = await response.json();
-    
+
     if (data.success) {
-      // 5. Mostrar resultados en los cuadros de texto
-      const posInput = document.getElementById('promptPositivo');
-      const negInput = document.getElementById('promptNegativo');
+      // Escribir los prompts construidos localmente
+      document.getElementById('promptPositivo').value = prompt;
+      document.getElementById('promptNegativo').value = negativePrompt;
       
-      if (posInput) posInput.value = data.prompt;
-      if (negInput) {
-        negInput.value = (typeof selectedEngine !== 'undefined' && selectedEngine === 'dalle') 
-          ? '(DALL-E no usa negativos)' 
-          : data.negative_prompt;
-      }
-      
-      // 6. Actualizar tokens
       showApiStatus(`Plan: ${data.plan} | Tokens: ${data.tokens_remaining} restantes`, 'success');
+      
+      // Animación de éxito (opcional, como tenías en tu v2)
+      document.getElementById('promptPositivo').parentElement.classList.add('ring-2', 'ring-amber-500/50');
+      setTimeout(() => {
+        document.getElementById('promptPositivo').parentElement.classList.remove('ring-2', 'ring-amber-500/50');
+      }, 1000);
+
     } else {
-      showApiStatus(data.error || 'Error en la generación', 'error');
+      showApiStatus(data.error, 'error');
     }
   } catch (error) {
-    console.error('Error:', error);
     showApiStatus('Error de conexión con el servidor', 'error');
   } finally {
-    // 7. Restaurar botón
     if (genBtn) {
       genBtn.disabled = false;
-      genBtn.innerHTML = originalText;
+      genBtn.innerHTML = 'Generar Prompt';
     }
   }
 };
@@ -1925,6 +1919,7 @@ async function validateApiKey() {
   </script>
 </body>
 </html>
+
 
 
 
