@@ -8,10 +8,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { api_key, final_prompt, final_negative_prompt } = req.body;
+  const { api_key } = req.body;
 
   try {
-    // 1. Validar usuario y tokens
+    // 1. Validar usuario
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('plan:plan_id, tokens_used, total:max_tokens')
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // 3. Devolver el OK (el prompt ya lo tenemos)
+    // 3. Responder OK
     res.status(200).json({
       success: true,
       tokens_remaining: user.total - (user.tokens_used + 1),
